@@ -12,28 +12,28 @@ from pprint import pprint
 import requests
 
 def get(url, username=None, password=None, session=None, **params):
-    if session:
-        requests = session
+    if not session:
+        session = requests
     kwargs = {'timeout': 10}
     if username and password:
         kwargs['auth'] = (username, password)
     if params:
         kwargs['params'] = params
     logging.info('GET for %s, args: %r',url,kwargs)
-    r = requests.get(url, **kwargs)
+    r = session.get(url, **kwargs)
     r.raise_for_status()
     return r
 
 def post(url, username=None, password=None, session=None, **params):
-    if session:
-        requests = session
+    if not session:
+        session = requests
     kwargs = {'timeout': 10}
     if username and password:
         kwargs['auth'] = (username, password)
     if params:
         kwargs['data'] = params
     logging.info('POST for %s, args: %r',url,kwargs)
-    r = requests.post(url, **kwargs)
+    r = session.post(url, **kwargs)
     r.raise_for_status()
     return r
 
@@ -55,6 +55,22 @@ TicketConstants = {
 
 base_url = 'http://code.icecube.wisc.edu/projects/icecube/'
 
+def get_users():
+    """
+    Get a list of names/usernames for trac
+    
+    Returns:
+        dict: {real name: username}
+    """
+    r = get(os.path.join(base_url,'subjects'))
+    users = {}
+    for line in r.text.split('\n'):
+        parts = line.split('|')
+        name = ' '.join(parts[-1].split())
+        if name:
+            users[name] = parts[0]
+    return users
+
 def new_ticket(summary=None, reporter='icecube', description=None,
                type=None, priority=None, milestone=None,
                component=None, keywords='', cc='',
@@ -66,6 +82,10 @@ def new_ticket(summary=None, reporter='icecube', description=None,
         summary = description.split('. ',1)[0]
     if not description:
         description = summary
+        
+    users = get_users()
+    if reporter in users:
+        reporter = users[reporter]
 
     def locate(phrases):
         s = summary.lower()+description.lower()
@@ -148,6 +168,10 @@ def new_ticket(summary=None, reporter='icecube', description=None,
             owner = find_phrase(['owner:','owner to'])
         except Exception:
             pass
+    if owner in users:
+        owner = users[owner]
+
+    cc = ','.join(users[c] if c in users else c for c in cc.split(',') if c)
  
     with start_session(base_url+'login') as s:
         # get form token
