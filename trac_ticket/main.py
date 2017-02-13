@@ -12,6 +12,7 @@ def main(testing=False):
         token = f.read().strip()
     slack = SlackMessage(token, testing=testing)
     slack.run()
+    logging.error('SlackMessage has stopped')
 
 if __name__ == '__main__':
     parser = ArgumentParser()

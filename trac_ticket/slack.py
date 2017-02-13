@@ -5,6 +5,7 @@ Communicate with slack as an RTM bot
 import os
 import time
 import logging
+import random
 from datetime import datetime, timedelta
 from contextlib import contextmanager
 from pprint import pprint
@@ -38,8 +39,11 @@ class SlackMessage:
         while self.keep_running:
             try:
                 last_read = self.client.rtm_read()
+                self.backoff = 1
             except Exception:
                 logging.warn('client error - attempting to reconnect')
+                self.backoff = random.getint(self.backoff,self.backoff*2)
+                time.sleep(self.backoff)
                 self.client.server.rtm_connect(reconnect=True)
                 continue
             last_read.reverse()
