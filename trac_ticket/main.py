@@ -3,8 +3,12 @@ import os
 import logging
 from argparse import ArgumentParser
 
+from setproctitle import setproctitle
+
 def main(testing=False):
     from slack import SlackMessage
+    
+    setproctitle('trac_ticket')
 
     logging.basicConfig(level='DEBUG' if testing else 'INFO')
     

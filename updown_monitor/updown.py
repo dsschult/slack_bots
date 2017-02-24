@@ -26,7 +26,7 @@ def monitor(servers, delay=60, failure_thresh=5):
                 logger.warn('error getting server page', exc_info=True)
                 s['failures'] += 1
                 if s['failures'] == failure_thresh:
-                    s['send'](s+' is down')
+                    s['send'](s['server']+' is down')
             else:
                 s['failures'] = 0
 

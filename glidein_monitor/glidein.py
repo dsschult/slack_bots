@@ -1,9 +1,12 @@
 import logging
 import time
+from datetime import datetime, timedelta
+import json
 
 from lxml import html, objectify
-from datetime import datetime, timedelta
 import requests
+
+from json_store import load, store
 
 logger = logging.getLogger('glidein')
 
@@ -18,10 +21,10 @@ def monitor(server, send=lambda a:None, delay=60*5, failure_thresh=5):
         failure_thresh (int): number of page failures before error
     """
     main_failures = 0
-    sites = {}
+    sites = load('.sites')
     while True:
         final_cutoff = datetime.utcnow()-timedelta(days=30)
-        cutoff = datetime.utcnow()-timedelta(hours=2)
+        cutoff = datetime.utcnow()-timedelta(hours=4)
         try:
             r = requests.get(server, timeout=10)
             r.raise_for_status()
@@ -48,7 +51,8 @@ def monitor(server, send=lambda a:None, delay=60*5, failure_thresh=5):
                         sites[uuid] = {'date':date,'status':'FAILED'}
                     elif sites[uuid]['status'] != 'OK' and date > cutoff:
                         sites[uuid] = {'date':date,'status':'OK'}
+                store(sites, '.sites')
             except:
                 logger.warn('parsing error', exc_info=True)
-        
+
         time.sleep(delay)

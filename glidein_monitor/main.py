@@ -4,9 +4,13 @@ import logging
 from functools import partial
 from argparse import ArgumentParser
 
+from setproctitle import setproctitle
+
 def main(testing=False):
     from slack import SlackMessage
     from glidein import monitor
+    
+    setproctitle('glidein_monitor')
 
     logging.basicConfig(level='DEBUG' if testing else 'INFO')
     

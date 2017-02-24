@@ -64,16 +64,33 @@ class SlackMessage:
 
     def send_message(self, channel, msg):
         logging.info('sending message to %s: %s', channel, msg)
-        backoff = 1
+        # do a read first, to prime the connection
+        try:
+            last_read = self.client.rtm_read()
+        except Exception:
+            logging.warn('client error - attempting to reconnect', exc_info=True)
+            self.client.server.rtm_connect(reconnect=True)
+        backoff = 10
         for _ in range(10):
-            try:
-                last_read = self.client.rtm_send_message(channel, msg)
-                backoff = 1
-            except Exception:
-                logging.warn('client error - attempting to reconnect', exc_info=True)
+            self.client.rtm_send_message(channel, msg)
+            time.sleep(10)
+            received = False
+            while not received:
+                last_read = self.client.rtm_read()
+                if not last_read:
+                    break
+                for m in last_read:
+                    logging.warn('%r',m)
+                    try: # check that we actually sent it
+                        if m['text'] == msg:
+                            received = True
+                            break
+                    except:
+                        pass
+            if not received:
+                logging.warn('client error - failed to send')
                 backoff = random.randint(backoff,backoff*2)
                 time.sleep(backoff)
-                self.client.server.rtm_connect(reconnect=True)
                 continue
             break
 
