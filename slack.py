@@ -38,7 +38,7 @@ class SlackMessage:
                 ret = self.client.rtm_read()
             except Exception:
                 logging.warn('client error - attempting to reconnect')
-                backoff = random.getint(backoff,backoff*2)
+                backoff = random.randint(backoff,backoff*2)
                 time.sleep(backoff)
                 try:
                     self.client.server.rtm_connect(reconnect=True)
@@ -55,8 +55,8 @@ class SlackMessage:
             try:
                 return self.client.rtm_send_message(channel, msg)
             except Exception:
-                logging.warn('client error - attempting to reconnect')
-                backoff = random.getint(backoff,backoff*2)
+                logging.warn('client error - attempting to reconnect', exc_info=True)
+                backoff = random.randint(backoff,backoff*2)
                 time.sleep(backoff)
                 try:
                     self.client.server.rtm_connect(reconnect=True)
