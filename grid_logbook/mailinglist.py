@@ -4,6 +4,8 @@ import time
 from datetime import datetime, timedelta
 import json
 import re
+import gzip
+import tempfile
 
 from lxml import html, objectify
 import requests
@@ -18,6 +20,14 @@ def hash(text):
     m = sha512()
     m.update(text.encode('utf-8'))
     return m.hexdigest()
+
+def decompress(in_data):
+    """Decompress the gzip txt file"""
+    with tempfile.TemporaryFile() as f:
+        f.write(in_data)
+        f.flush()
+        f.seek(0)
+        return gzip.open(f).read().decode('utf-8')
 
 def parse_msg(text):
     """Parse an email message into summary text"""
@@ -128,10 +138,14 @@ def monitor(archives, send=lambda a:None, delay=60*5, failure_thresh=5,
                         logger.warn('error getting month page')
                         raise
                     else:
+                        if link.endswith('.gz'):
+                            data = decompress(r.content)
+                        else:
+                            data = r.text
                         out_buffer = []
                         last_hash = None
                         # filter the messages to remove previously sent ones
-                        for msg in parse_month(r.text):
+                        for msg in parse_month(data):
                             if msg['hash'] == last_message['hash']:
                                 out_buffer = []
                                 continue
