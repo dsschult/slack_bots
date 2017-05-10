@@ -121,13 +121,14 @@ def monitor(archives, send=lambda a:None, delay=60*5, failure_thresh=5,
                 root = objectify.fromstring(r.content, parser=html.HTMLParser())
                 for e in root.body.cssselect('table td a'):
                     link = e.get('href')
-                    if link.endswith('.txt'):
+                    if link.endswith('.txt') or link.endswith('.txt.gz'):
                         month_links.append(link)
-                        if link == last_message['link']:
+                        if link.split('.',1)[0] == last_message['link']:
                             break # stop once we've reached the recorded month
 
                 # sort by recorded month first
                 month_links.reverse()
+                logger.info('months: %r',month_links)
                 for link in month_links:
                     logger.info('anaylzing %s',link)
                     try:
@@ -157,7 +158,7 @@ def monitor(archives, send=lambda a:None, delay=60*5, failure_thresh=5,
                         for msg in out_buffer:
                             logger.info('sending new message:\n%r',msg['text'])
                             send('```'+msg['text']+'```')
-                            last_message = {'hash':msg['hash'],'link':link}
+                            last_message = {'hash':msg['hash'],'link':link.split('.',1)[0]}
                             store(last_message, '.last_message')
             except Exception:
                 logger.warn('parsing error', exc_info=True)
