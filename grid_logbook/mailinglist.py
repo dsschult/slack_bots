@@ -10,6 +10,7 @@ import tempfile
 from lxml import html, objectify
 import requests
 from hashlib import sha512
+import base64
 
 from json_store import load, store
 
@@ -20,6 +21,38 @@ def hash(text):
     m = sha512()
     m.update(text.encode('utf-8'))
     return m.hexdigest()
+
+
+def quoted_printable(data,codec='utf8'):
+    ret = b''
+    oldpos = 0
+    pos = data.find('=')
+    while pos >= 0:
+        ret += data[oldpos:pos].encode(codec)
+        ret += base64.b16decode(data[pos+1:pos+3],True)
+        oldpos = pos+3
+        pos = data.find('=',oldpos)
+    ret += data[oldpos:].encode(codec)
+    return ret.decode(codec)
+
+def decode_header(data):
+    pos1 = data.find('=?')
+    pos2 = data.find('?=')
+    if pos1 >= 0 and pos2 > 0:
+        # encoded
+        ret = data[:pos1]
+        parts = [x for x in data[pos1+2:pos2].split('?') if x]
+        codec = parts[0]
+        method = parts[1]
+        encoded_data = parts[2]
+        if method == 'Q':
+            ret += quoted_printable(encoded_data, codec)
+        else:
+            ret += base64.b64decode(encoded_data, True).decode(codec)
+        ret += data[pos2+2:]
+        return ret
+    else:
+        return data
 
 def decompress(in_data):
     """Decompress the gzip txt file"""
@@ -46,7 +79,7 @@ def parse_msg(text):
                 val = line.split(':',1)[1].strip().replace(' at ','@')
                 if '(' in val and ')' in val:
                     val = val.split('(',1)[1].rsplit(')',1)[0].strip()
-                sender = val
+                sender = decode_header(val)
             elif line.startswith('Date:'):
                 val = line.split(':',1)[1].strip()
                 d = datetime.strptime(val, '%a, %d %b %Y %H:%M:%S %z')
@@ -54,7 +87,7 @@ def parse_msg(text):
                 date = val+' UTC'
             elif line.startswith('Subject:'):
                 val = line.split(':',1)[1].replace('[grid-logbook]','').strip()
-                subject = val
+                subject = decode_header(val)
         elif line.startswith('-------------- next part --------------'):
             break # done processing
         else:
@@ -121,7 +154,9 @@ def monitor(archives, send=lambda a:None, delay=60*5, failure_thresh=5,
                 root = objectify.fromstring(r.content, parser=html.HTMLParser())
                 for e in root.body.cssselect('table td a'):
                     link = e.get('href')
-                    if link.endswith('.txt') or link.endswith('.txt.gz'):
+                    if link.endswith('.txt.gz'):
+                        link = link[:-3]
+                    if link.endswith('.txt'):
                         month_links.append(link)
                         if link.split('.',1)[0] == last_message['link']:
                             break # stop once we've reached the recorded month
