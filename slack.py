@@ -6,12 +6,18 @@ import os
 import time
 import logging
 import random
+import re
 from datetime import datetime, timedelta
 from contextlib import contextmanager
 from pprint import pprint
 
 import requests
 from slackclient import SlackClient
+
+
+def parse_slack_message(txt):
+    """Remove added bits from slack message text, like url links"""
+    return ''.join(p if i%2==0 else p.split('|',1)[-1] for i,p in enumerate(re.split('<(.*)>',txt)))
 
 class SlackMessage:
     def __init__(self, token, handler=None, filter_me=True, delay=1.0,
@@ -107,7 +113,7 @@ class SlackMessage:
                 for m in last_read:
                     logging.warn('%r',m)
                     try: # check that we actually sent it
-                        if m['text'] == msg:
+                        if parse_slack_message(m['text']) == msg:
                             received = True
                             break
                     except:

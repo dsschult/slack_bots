@@ -149,6 +149,7 @@ def monitor(archives, send=lambda a:None, delay=60*5, failure_thresh=5,
             if main_failures > failure_thresh:
                 send('mailinglist server is down')
         else:
+            main_failures = 0
             month_links = []
             try:
                 root = objectify.fromstring(r.content, parser=html.HTMLParser())
